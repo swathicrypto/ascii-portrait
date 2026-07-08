@@ -106,8 +106,9 @@ const CONFIG = {
   // the cap + face so a busy background falls away. Nudge these for your photo.
   focus: { zoom: 1.65, x: 0.50, y: 0.44 },
   autoContrast: true, // stretch tones apart — essential for dark photos
-  gamma: 0.85,        // <1 lifts midtones so shadow detail survives
-  vignette: 0.85,     // fade the busy background toward the edges (0 = off)
+  gamma: 0.78,        // <1 lifts midtones so the portrait reads brighter
+  vignette: 0.92,     // fade the busy background toward the edges (0 = off)
+  brightness: 1.35,   // overall glow gain — raise for a brighter portrait
 };
 
 /* Text sources for each evolution layer. The characters that form
@@ -177,7 +178,7 @@ function resize(){
 
 function computeGrid(){
   // Mouse X drives density: left = chunky, right = fine.
-  const minCell = 5, maxCell = 16;
+  const minCell = 4, maxCell = 11;
   cell = Math.round(maxCell - (maxCell - minCell) * mouseX);
   cols = Math.floor(W / cell);
   rows = Math.floor(H / (cell * 1.05)); // chars are taller than wide
@@ -349,24 +350,24 @@ function render(now){
     for(let c=0; c<cols; c++){
       const di = (r*cols + c) * 4;
       const R = sampleData[di], G = sampleData[di+1], B = sampleData[di+2];
-      let bright = (0.299*R + 0.587*G + 0.114*B) / 255; // 0 dark .. 1 light
+      let bn = (0.299*R + 0.587*G + 0.114*B) / 255; // 0 dark .. 1 light
       // auto-contrast stretch + gamma
-      bright = (bright - NORM.lo) / (NORM.hi - NORM.lo);
-      bright = bright < 0 ? 0 : bright > 1 ? 1 : bright;
-      if(CONFIG.gamma !== 1) bright = Math.pow(bright, CONFIG.gamma);
-      // vignette: lift brightness toward the frame edges so the busy
-      // background melts away and density concentrates on the subject
+      bn = (bn - NORM.lo) / (NORM.hi - NORM.lo);
+      bn = bn < 0 ? 0 : bn > 1 ? 1 : bn;
+      if(CONFIG.gamma !== 1) bn = Math.pow(bn, CONFIG.gamma);
+      // vignette: darken the frame edges so the busy background recedes
       if(CONFIG.vignette > 0){
         const ddx = (c/cols - 0.5)*2, ddy = (r/rows - 0.5)*2;
         const dist = Math.sqrt(ddx*ddx + ddy*ddy);
-        const e = Math.min(1, Math.max(0, (dist - 0.55) / 0.6));
-        bright = bright + (1 - bright) * e * CONFIG.vignette;
+        const e = Math.min(1, Math.max(0, (dist - 0.45) / 0.5));
+        bn *= (1 - e * CONFIG.vignette);
       }
-      // dark=dense by default; invert flips to bright=dense (glowing subject)
-      const intensity = invert ? bright : 1 - bright;
+      // "ink" = how present a cell is. Default reflects the photo's brightness:
+      // lit areas glow, shadows fall away. Invert flips to a shadow-ink look.
+      const ink = invert ? (1 - bn) : bn;
 
       // skip near-empty cells for speed & cleaner look
-      if(intensity < 0.13){ continue; }
+      if(ink < 0.12){ continue; }
 
       const cellIndex = r*cols + c;
 
@@ -386,19 +387,19 @@ function render(now){
 
       if(ch === ' '){ continue; }
 
-      let alpha = intensity * asciiAlpha;
-      // mouse Y adds a little contrast punch
-      alpha = Math.min(1, alpha * (0.7 + mouseY*0.8));
+      let alpha = (0.30 + ink * 0.85) * CONFIG.brightness * asciiAlpha;
+      alpha *= (0.80 + mouseY * 0.5); // mouse Y adds glow
+      alpha = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
 
       let col;
       if(colorMode){
-        // tint with the source image color, boosted
-        const boost = 0.55 + intensity*0.65;
-        col = `rgba(${Math.min(255,R*boost)|0},${Math.min(255,G*boost)|0},${Math.min(255,B*boost)|0},${alpha})`;
+        // reflect the photo's own color, lifted so lit areas glow
+        const gain = (1.25 + bn * 0.75) * CONFIG.brightness;
+        col = `rgba(${Math.min(255,R*gain)|0},${Math.min(255,G*gain)|0},${Math.min(255,B*gain)|0},${alpha})`;
       } else {
-        // terminal green, brightness by intensity
-        const v = 120 + intensity*135;
-        col = `rgba(${(v*0.5)|0},${v|0},${(v*0.8)|0},${alpha})`;
+        // terminal green, brightness follows the image
+        const v = Math.min(255, (55 + ink * 210) * CONFIG.brightness);
+        col = `rgba(${(v*0.45)|0},${v|0},${(v*0.7)|0},${alpha})`;
       }
       ctx.fillStyle = col;
       ctx.fillText(ch, c*cell, r*cell*1.05);
