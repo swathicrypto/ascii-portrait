@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SWATHI PRAKASH — ASCII Portrait</title>
+<style>
+  :root{
+    --bg:#05060a;
+    --ink:#c9d6ff;
+    --dim:#5a6785;
+    --accent:#7cf6c8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;}
+  body{overflow-x:hidden}
+
+  /* The scroll track: tall page so scrolling has room to drive the animation */
+  #track{height:600vh;position:relative}
+
+  /* The sticky stage stays pinned while you scroll through the track */
+  #stage{
+    position:sticky;top:0;height:100vh;width:100vw;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  #ascii{display:block;image-rendering:pixelated;cursor:pointer;}
+
+  /* Vignette + subtle scanlines for terminal feel */
+  #stage::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.65) 100%);
+  }
+
+  /* Caption that names the current layer */
+  #caption{
+    position:absolute;left:50%;bottom:8vh;transform:translateX(-50%);
+    text-align:center;pointer-events:none;letter-spacing:.28em;
+    text-transform:uppercase;font-size:12px;color:var(--dim);
+    transition:opacity .4s;text-shadow:0 0 20px rgba(0,0,0,.9);
+  }
+  #caption b{display:block;color:var(--accent);font-size:15px;margin-bottom:6px;letter-spacing:.35em}
+
+  /* Hint bar */
+  #hint{
+    position:absolute;left:50%;top:6vh;transform:translateX(-50%);
+    font-size:11px;letter-spacing:.18em;color:var(--dim);text-align:center;
+    pointer-events:none;text-transform:uppercase;
+  }
+  #scrollcue{
+    position:absolute;left:50%;bottom:3vh;transform:translateX(-50%);
+    font-size:10px;letter-spacing:.3em;color:var(--dim);animation:blink 1.6s infinite;
+  }
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+
+  /* Control panel */
+  #panel{
+    position:fixed;top:14px;right:14px;z-index:10;display:flex;gap:8px;flex-wrap:wrap;
+    justify-content:flex-end;max-width:260px;
+  }
+  #panel button, #panel label{
+    background:rgba(20,26,40,.7);border:1px solid #26304a;color:var(--ink);
+    font:inherit;font-size:11px;letter-spacing:.05em;padding:7px 11px;border-radius:7px;
+    cursor:pointer;backdrop-filter:blur(6px);transition:.15s;
+  }
+  #panel button:hover, #panel label:hover{border-color:var(--accent);color:var(--accent)}
+  #file{display:none}
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <label for="file">▲ upload photo</label>
+  <input id="file" type="file" accept="image/*" />
+  <button id="colorBtn">◐ color</button>
+  <button id="replayBtn">↻ replay</button>
+</div>
+
+<div id="track">
+  <div id="stage">
+    <canvas id="ascii"></canvas>
+    <div id="hint">move mouse → density&nbsp;&nbsp;·&nbsp;&nbsp;click → reveal photo</div>
+    <div id="caption"><b id="capTitle">BOOTING</b><span id="capSub">initializing…</span></div>
+    <div id="scrollcue">scroll ↓</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SWATHI PRAKASH — Interactive ASCII Portrait
+   Single-file. Drop in your own photo via the upload button,
+   or replace DEFAULT_IMAGE below with a path/URL to your photo.
+   ============================================================ */
+
+const CONFIG = {
+  // Put your graduation photo in the repo as "portrait.jpg" and it loads
+  // automatically. If the file is missing, a placeholder portrait is used.
+  DEFAULT_IMAGE: "portrait.jpg",
+  name: "SWATHI PRAKASH",
+  // Character density ramp (classic ASCII), dark -> light
+  ramp: "@%#*+=-:. ",
+};
+
+/* Text sources for each evolution layer. The characters that form
+   the portrait are literally drawn from these strings. */
+const LAYERS = [
+  { title: "RAW BINARY", sub: "010101 — the machine underneath",
+    text: "01001101 01100001 01100011 01101000 01101001 01101110 01100101 " .repeat(60) },
+  { title: "SOURCE CODE", sub: "Python — how the models are built",
+    text: `def train(model, data):
+    for epoch in range(epochs):
+        loss = model.fit(X, y)
+        grad = backprop(loss)
+        optimizer.step(grad)
+    return evaluate(model, test)  # accuracy, fairness, robustness
+import numpy as np ; from torch import nn ; class NeuralNet(nn.Module): pass ` .repeat(10) },
+  { title: "AI GOVERNANCE", sub: "the vocabulary of responsible AI",
+    text: "fairness explainability robustness optimization gradient descent neural network machine learning policy governance audit transparency monitoring accountability verification bias privacy quantum " .repeat(14) },
+  { title: "SWATHI PRAKASH", sub: "UPenn · Penn Engineering · Computer Science",
+    text: "SWATHI PRAKASH · UPENN · PENN ENGINEERING · COMPUTER SCIENCE · AI RESEARCH · PHILADELPHIA · " .repeat(20) },
+  { title: "GRADUATION", sub: "the photograph beneath the code",
+    text: "SWATHI PRAKASH " .repeat(80) },
+];
+
+// ---------- Canvas + state ----------
+const canvas = document.getElementById('ascii');
+const ctx = canvas.getContext('2d');
+const sampler = document.createElement('canvas');
+const sctx = sampler.getContext('2d', { willReadFrequently: true });
+
+const capTitle = document.getElementById('capTitle');
+const capSub   = document.getElementById('capSub');
+const caption  = document.getElementById('caption');
+
+let img = null, imgReady = false;
+let W = 0, H = 0;                 // canvas pixel size
+let cols = 100, rows = 60;       // ascii grid
+let cell = 8;                    // pixel size per cell
+let mouseX = 0.5, mouseY = 0.5;  // normalized mouse
+let scrollP = 0;                 // 0..1 scroll progress
+let colorMode = true;            // sample image color vs monospace green
+let sampleData = null;           // resampled image pixels at grid res
+
+// intro / click animation
+let phase = 'typing';            // typing -> resolving -> idle
+let phaseStart = performance.now();
+let reveal = 0;                  // 0 = ascii, 1 = real photo (click-driven)
+let revealTarget = 0;
+
+// ---------- Sizing ----------
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.floor(window.innerWidth);
+  H = Math.floor(window.innerHeight);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  computeGrid();
+}
+
+function computeGrid(){
+  // Mouse X drives density: left = chunky, right = fine.
+  const minCell = 5, maxCell = 16;
+  cell = Math.round(maxCell - (maxCell - minCell) * mouseX);
+  cols = Math.floor(W / cell);
+  rows = Math.floor(H / (cell * 1.05)); // chars are taller than wide
+  resample();
+}
+
+// ---------- Image handling ----------
+function loadImage(src, fallback){
+  const i = new Image();
+  i.crossOrigin = "anonymous";
+  i.onload = () => { img = i; imgReady = true; resample(); };
+  i.onerror = () => { if(fallback) loadImage(fallback); };
+  i.src = src;
+}
+
+function resample(){
+  if(!imgReady || cols<1 || rows<1) return;
+  sampler.width = cols; sampler.height = rows;
+  // cover-fit the image into the grid
+  const ir = img.width / img.height;
+  const gr = cols / rows;
+  let sw, sh, sx, sy;
+  if(ir > gr){ sh = img.height; sw = img.height*gr; sx=(img.width-sw)/2; sy=0; }
+  else       { sw = img.width;  sh = img.width/gr;  sy=(img.height-sh)/2; sx=0; }
+  sctx.clearRect(0,0,cols,rows);
+  sctx.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
+  sampleData = sctx.getImageData(0,0,cols,rows).data;
+}
+
+// Built-in placeholder: a stylized graduation portrait so it works instantly.
+function makePlaceholder(){
+  const c = document.createElement('canvas');
+  c.width = 600; c.height = 750;
+  const g = c.getContext('2d');
+  // background
+  const bg = g.createRadialGradient(300,300,50,300,375,500);
+  bg.addColorStop(0,'#2a3350'); bg.addColorStop(1,'#070a12');
+  g.fillStyle = bg; g.fillRect(0,0,600,750);
+  // shoulders / gown
+  g.fillStyle = '#141a2b';
+  g.beginPath();
+  g.moveTo(120,750); g.quadraticCurveTo(300,520,480,750); g.closePath(); g.fill();
+  // neck
+  g.fillStyle = '#c9a888'; g.fillRect(265,430,70,80);
+  // head
+  const face = g.createRadialGradient(300,350,20,300,360,150);
+  face.addColorStop(0,'#e8c9a8'); face.addColorStop(1,'#b48a63');
+  g.fillStyle = face;
+  g.beginPath(); g.ellipse(300,360,110,135,0,0,Math.PI*2); g.fill();
+  // hair
+  g.fillStyle='#1c1712';
+  g.beginPath(); g.ellipse(300,300,120,110,0,Math.PI,0); g.fill();
+  g.fillRect(190,300,30,180); g.fillRect(380,300,30,180);
+  // simple features
+  g.fillStyle='#2a2018';
+  g.beginPath(); g.ellipse(262,360,12,8,0,0,Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(338,360,12,8,0,0,Math.PI*2); g.fill();
+  g.strokeStyle='#7a5a42'; g.lineWidth=4;
+  g.beginPath(); g.moveTo(280,430); g.quadraticCurveTo(300,445,320,430); g.stroke();
+  // mortarboard cap
+  g.fillStyle='#0b0d16';
+  g.beginPath(); g.ellipse(300,250,90,32,0,0,Math.PI*2); g.fill();
+  g.save(); g.translate(300,225); g.rotate(0.02);
+  g.fillStyle='#05070d';
+  g.fillRect(-150,-24,300,30);
+  g.beginPath(); g.moveTo(-150,-24); g.lineTo(0,-58); g.lineTo(150,-24); g.lineTo(0,10); g.closePath(); g.fill();
+  g.restore();
+  // tassel
+  g.strokeStyle='#f2c14e'; g.lineWidth=4;
+  g.beginPath(); g.moveTo(300,190); g.lineTo(420,205); g.lineTo(425,300); g.stroke();
+  g.fillStyle='#f2c14e'; g.beginPath(); g.arc(425,315,12,0,Math.PI*2); g.fill();
+  return c.toDataURL();
+}
+
+// ---------- Layer selection by scroll ----------
+function layerAt(p){
+  // p in 0..1 -> index into LAYERS with a blend fraction
+  const n = LAYERS.length;
+  const f = Math.min(p * n, n - 0.0001);
+  return { idx: Math.floor(f), frac: f - Math.floor(f) };
+}
+
+// A rolling pointer so text flows continuously across the grid
+function pickChar(text, seqIndex){
+  const s = text;
+  const ch = s.charCodeAt(seqIndex % s.length);
+  return String.fromCharCode(ch);
+}
+
+// ---------- Render ----------
+function render(now){
+  requestAnimationFrame(render);
+  if(!imgReady) return;
+
+  // smooth reveal toward target (click)
+  reveal += (revealTarget - reveal) * 0.08;
+
+  const { idx, frac } = layerAt(scrollP);
+  const layer = LAYERS[idx];
+  const nextLayer = LAYERS[Math.min(idx+1, LAYERS.length-1)];
+
+  // caption
+  capTitle.textContent = layer.title;
+  capSub.textContent = layer.sub;
+
+  // The final layer + click reveal fade toward the real photo
+  const photoReveal = Math.max(reveal, Math.max(0, (scrollP - 0.86) / 0.14));
+
+  ctx.clearRect(0,0,W,H);
+
+  // Draw real photo underneath, fading in
+  if(photoReveal > 0.001){
+    ctx.globalAlpha = photoReveal;
+    // cover-fit draw
+    const ir = img.width/img.height, gr = W/H;
+    let dw,dh,dx,dy;
+    if(ir>gr){ dh=H; dw=H*ir; dx=(W-dw)/2; dy=0; } else { dw=W; dh=W/ir; dx=0; dy=(H-dh)/2; }
+    ctx.drawImage(img, dx,dy,dw,dh);
+    ctx.globalAlpha = 1;
+  }
+
+  const asciiAlpha = 1 - photoReveal;
+  if(asciiAlpha <= 0.001) { updateHUD(); return; }
+
+  // font
+  ctx.font = `${cell}px "SF Mono", ui-monospace, Menlo, Consolas, monospace`;
+  ctx.textBaseline = 'top';
+
+  // typing intro progress
+  const elapsed = now - phaseStart;
+  let typedCells = cols*rows;
+  if(phase === 'typing'){
+    const dur = 1400;
+    typedCells = Math.floor((elapsed/dur) * cols * rows);
+    if(elapsed >= dur){ phase = 'resolving'; phaseStart = now; }
+  }
+  let resolveAmt = 1;
+  if(phase === 'resolving'){
+    const dur = 1300;
+    resolveAmt = Math.min(elapsed/dur, 1);
+    if(resolveAmt >= 1){ phase = 'idle'; }
+  }
+
+  const text = layer.text;
+  let seq = 0;
+
+  for(let r=0; r<rows; r++){
+    for(let c=0; c<cols; c++){
+      const di = (r*cols + c) * 4;
+      const R = sampleData[di], G = sampleData[di+1], B = sampleData[di+2];
+      const bright = (0.299*R + 0.587*G + 0.114*B) / 255; // 0 dark .. 1 light
+      const intensity = 1 - bright; // dark areas -> strong characters
+
+      // skip near-empty cells for speed & cleaner look
+      if(intensity < 0.14){ continue; }
+
+      const cellIndex = r*cols + c;
+
+      // during typing, only cells "typed" so far show, as '@'
+      let ch;
+      if(phase === 'typing'){
+        if(cellIndex > typedCells) continue;
+        ch = '@';
+      } else if(phase === 'resolving'){
+        // crossfade '@' -> real layer char, per-cell threshold sweep
+        const cellPhase = cellIndex / (cols*rows);
+        ch = (resolveAmt > cellPhase) ? pickChar(text, seq) : '@';
+      } else {
+        ch = pickChar(text, seq);
+      }
+      seq++;
+
+      if(ch === ' '){ continue; }
+
+      let alpha = intensity * asciiAlpha;
+      // mouse Y adds a little contrast punch
+      alpha = Math.min(1, alpha * (0.7 + mouseY*0.8));
+
+      let col;
+      if(colorMode){
+        // tint with the source image color, boosted
+        const boost = 0.55 + intensity*0.65;
+        col = `rgba(${Math.min(255,R*boost)|0},${Math.min(255,G*boost)|0},${Math.min(255,B*boost)|0},${alpha})`;
+      } else {
+        // terminal green, brightness by intensity
+        const v = 120 + intensity*135;
+        col = `rgba(${(v*0.5)|0},${v|0},${(v*0.8)|0},${alpha})`;
+      }
+      ctx.fillStyle = col;
+      ctx.fillText(ch, c*cell, r*cell*1.05);
+    }
+  }
+
+  updateHUD();
+}
+
+function updateHUD(){
+  caption.style.opacity = (phase==='idle') ? 1 : 0.5;
+}
+
+// ---------- Events ----------
+window.addEventListener('resize', resize);
+
+window.addEventListener('mousemove', (e)=>{
+  const nx = e.clientX / window.innerWidth;
+  const ny = e.clientY / window.innerHeight;
+  mouseY = ny;
+  // recompute grid only when density (x) changes meaningfully
+  if(Math.abs(nx - mouseX) > 0.03){
+    mouseX = nx; computeGrid();
+  } else { mouseX = nx; }
+});
+
+window.addEventListener('scroll', ()=>{
+  const max = document.getElementById('track').offsetHeight - window.innerHeight;
+  scrollP = Math.min(1, Math.max(0, window.scrollY / max));
+  document.getElementById('scrollcue').style.opacity = scrollP > 0.02 ? 0 : '';
+});
+
+canvas.addEventListener('click', ()=>{
+  revealTarget = revealTarget > 0.5 ? 0 : 1; // toggle real-photo reveal
+});
+
+document.getElementById('colorBtn').addEventListener('click', ()=>{
+  colorMode = !colorMode;
+});
+
+document.getElementById('replayBtn').addEventListener('click', ()=>{
+  phase = 'typing'; phaseStart = performance.now(); revealTarget = 0; reveal = 0;
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+document.getElementById('file').addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const url = URL.createObjectURL(f);
+  imgReady = false;
+  loadImage(url);
+  phase='typing'; phaseStart=performance.now(); revealTarget=0; reveal=0;
+});
+
+// drag & drop anywhere
+window.addEventListener('dragover', e=>e.preventDefault());
+window.addEventListener('drop', e=>{
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if(f && f.type.startsWith('image/')){
+    imgReady=false; loadImage(URL.createObjectURL(f));
+    phase='typing'; phaseStart=performance.now();
+  }
+});
+
+// ---------- Boot ----------
+resize();
+loadImage(CONFIG.DEFAULT_IMAGE || makePlaceholder(), makePlaceholder());
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
