@@ -34,6 +34,23 @@ As you scroll, the same portrait is redrawn from a different alphabet:
 - **Upload** or **drag-drop** an image — swap in any photo live
 - **Color** — toggle image-tinted vs. terminal green
 - **Replay** — restart the typing intro
+- **Record video** — auto-plays a ~20s cinematic run and saves it as a video
+- **Save frame** — export the current frame as a PNG
+
+## Posting it on LinkedIn
+
+LinkedIn can't embed a live page, so post the **video** and link to the live
+demo in the caption:
+
+1. Open the page (locally or the live link) with your `portrait.jpg` in place.
+2. Click **● record video** — it plays the full sequence and downloads a
+   square 1080×1080 clip (`.mp4` in recent Chrome/Edge — ideal for the feed).
+3. Create a LinkedIn post, attach the video, and drop the live-demo link in the
+   caption so people can try it themselves.
+
+> Tip: if your browser saves a `.webm` instead of `.mp4`, either record with the
+> latest Chrome/Edge, or use Windows **Game Bar** (`Win + Alt + R`) to screen-
+> record the run — that produces an `.mp4` directly.
 
 ## Run it locally
 
