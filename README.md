@@ -9,7 +9,7 @@ The characters that draw the portrait aren't random. They're pulled from the
 things that made up the degree: the code, the research language, the name on
 the diploma.
 
-> **Live demo:** https://swathi-crypto.github.io/ascii-portrait/
+> **Live demo:** https://swathicrypto.github.io/ascii-portrait/
 
 <!-- Optional: add a screen recording or screenshot here -->
 <!-- ![preview](preview.gif) -->
