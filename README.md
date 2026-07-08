@@ -9,7 +9,7 @@ The characters that draw the portrait aren't random. They're pulled from the
 things that made up the degree: the code, the research language, the name on
 the diploma.
 
-> **Live demo:** https://YOUR-GITHUB-USERNAME.github.io/ascii-portrait/
+> **Live demo:** https://swathi-crypto.github.io/ascii-portrait/
 
 <!-- Optional: add a screen recording or screenshot here -->
 <!-- ![preview](preview.gif) -->
@@ -33,6 +33,7 @@ As you scroll, the same portrait is redrawn from a different alphabet:
 - **Click the portrait** — reveals / hides the real photo
 - **Upload** or **drag-drop** an image — swap in any photo live
 - **Color** — toggle image-tinted vs. terminal green
+- **Invert** — flip between full-figure (dark = dense) and glowing-subject (bright = dense)
 - **Replay** — restart the typing intro
 - **Record video** — auto-plays a ~20s cinematic run and saves it as a video
 - **Save frame** — export the current frame as a PNG
@@ -72,9 +73,14 @@ automatically. (If it's missing, a placeholder portrait is shown.)
 
 Everything worth editing lives at the top of `index.html`:
 
-- **`CONFIG`** — your name, the image path, the density ramp
+- **`CONFIG`** — your name, image path, density ramp, and **`focus`** (zoom /
+  crop center) plus **`autoContrast`** / **`gamma`** for tuning dark photos
 - **`LAYERS`** — the text each layer is drawn from. Paste in snippets of your
   résumé, thesis, or actual code and they'll form the image.
+
+> **Framing tip:** if your face sits off-center or too far away, nudge
+> `CONFIG.focus` — raise `zoom` to crop in tighter, and shift `x` / `y`
+> (0–1) to re-center on your face.
 
 ## Tech
 
