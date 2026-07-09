@@ -358,9 +358,12 @@ function render(now){
       if(CONFIG.gamma !== 1) bn = Math.pow(bn, CONFIG.gamma);
       // vignette: darken the frame edges so the busy background recedes
       if(CONFIG.vignette > 0){
-        const ddx = (c/cols - 0.5)*2, ddy = (r/rows - 0.5)*2;
+        // Elliptical vignette: lenient vertically so the cap and shoulders
+        // survive top-to-bottom, but fades the left/right background sides.
+        const ddx = (c/cols - 0.5) * 2;
+        const ddy = (r/rows - 0.5) * 2 * 0.5;
         const dist = Math.sqrt(ddx*ddx + ddy*ddy);
-        const e = Math.min(1, Math.max(0, (dist - 0.34) / 0.42));
+        const e = Math.min(1, Math.max(0, (dist - 0.55) / 0.55));
         bn *= (1 - e * CONFIG.vignette);
       }
       // "ink" = how present a cell is. Default reflects the photo's brightness:
