@@ -106,9 +106,10 @@ const CONFIG = {
   // the cap + face so a busy background falls away. Nudge these for your photo.
   focus: { zoom: 1.65, x: 0.50, y: 0.44 },
   autoContrast: true, // stretch tones apart — essential for dark photos
-  gamma: 0.78,        // <1 lifts midtones so the portrait reads brighter
+  gamma: 0.60,        // <1 lifts shadows so the dark side of the face survives
   vignette: 0.96,     // fade the busy background toward the edges (0 = off)
-  brightness: 1.35,   // overall glow gain — raise for a brighter portrait
+  brightness: 1.30,   // overall glow gain — raise for a brighter portrait
+  floor: 0.06,        // cells dimmer than this are skipped; lower = more shadow detail
 };
 
 /* Text sources for each evolution layer. The characters that form
@@ -367,7 +368,7 @@ function render(now){
       const ink = invert ? (1 - bn) : bn;
 
       // skip near-empty cells for speed & cleaner look
-      if(ink < 0.12){ continue; }
+      if(ink < CONFIG.floor){ continue; }
 
       const cellIndex = r*cols + c;
 
