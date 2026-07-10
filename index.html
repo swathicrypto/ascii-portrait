@@ -310,8 +310,8 @@ function render(now){
   // caption
   capTitle.textContent = layer.title;
   capSub.textContent = layer.sub;
-  // the final "GRADUATION" caption picks up the sash gold
-  capTitle.style.color = (idx === LAYERS.length - 1) ? 'var(--gold)' : '';
+  // all layer titles use the sash gold
+  capTitle.style.color = 'var(--gold)';
 
   // The final layer + click reveal fade toward the real photo
   const photoReveal = Math.max(reveal, Math.max(0, (scrollP - 0.86) / 0.14));
