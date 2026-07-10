@@ -1,11 +1,11 @@
 # ASCII Portrait — *Swathi Prakash*
 
 An interactive, scroll-driven graduation portrait. It begins as raw `010101`
-binary "typing" itself onto the screen, then evolves — through Python source,
-the vocabulary of AI governance, and my own name — until it finally dissolves
+binary "typing" itself onto the screen, then evolves (through Python source,
+the vocabulary of AI governance, and my own name) until it finally dissolves
 into the real graduation photograph.
 
-The characters that draw the portrait aren't random. They're pulled from the
+The characters that draw the portrait are pulled from the
 things that made up the degree: the code, the research language, the name on
 the diploma.
 
@@ -20,23 +20,23 @@ the diploma.
 
 As you scroll, the same portrait is redrawn from a different alphabet:
 
-1. **Raw binary** — `010101…` the machine underneath
-2. **Source code** — Python, how the models are built
-3. **AI governance** — fairness, explainability, robustness, accountability, audit
-4. **Name & degree** — `SWATHI PRAKASH · UPENN · PENN ENGINEERING · COMPUTER SCIENCE`
-5. **Graduation** — the ASCII dissolves into the real photograph
+1. **Raw binary** : `010101…` the machine underneath
+2. **Source code** : Python, how the models are built
+3. **AI governance** : fairness, explainability, robustness, accountability, audit
+4. **Name & degree** : `SWATHI PRAKASH · UPENN · PENN ENGINEERING · COMPUTER SCIENCE`
+5. **Graduation** : the ASCII dissolves into the real photograph
 
 ## Interactions
 
-- **Scroll** — moves through the five layers
-- **Move the mouse** — left/right changes character density (chunky ↔ fine)
-- **Click the portrait** — reveals / hides the real photo
-- **Upload** or **drag-drop** an image — swap in any photo live
-- **Color** — toggle image-tinted vs. terminal green
-- **Invert** — flip between full-figure (dark = dense) and glowing-subject (bright = dense)
-- **Replay** — restart the typing intro
-- **Record video** — auto-plays a ~20s cinematic run and saves it as a video
-- **Save frame** — export the current frame as a PNG
+- **Scroll** : moves through the five layers
+- **Move the mouse** : left/right changes character density (chunky ↔ fine)
+- **Click the portrait** : reveals / hides the real photo
+- **Upload** or **drag-drop** an image : swap in any photo live
+- **Color** : toggle image-tinted vs. terminal green
+- **Invert** : flip between full-figure (dark = dense) and glowing-subject (bright = dense)
+- **Replay** : restart the typing intro
+- **Record video** : auto-plays a ~20s cinematic run and saves it as a video
+- **Save frame** : export the current frame as a PNG
 
 ## Posting it on LinkedIn
 
