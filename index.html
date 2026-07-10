@@ -106,10 +106,11 @@ const CONFIG = {
   // the cap + face so a busy background falls away. Nudge these for your photo.
   focus: { zoom: 1.65, x: 0.50, y: 0.44 },
   autoContrast: true, // stretch tones apart — essential for dark photos
-  gamma: 0.60,        // <1 lifts shadows so the dark side of the face survives
+  gamma: 0.68,        // <1 lifts shadows so the dark side of the face survives
   vignette: 0,        // 0 = render the whole photo (background included)
-  brightness: 1.30,   // overall glow gain — raise for a brighter portrait
+  brightness: 1.05,   // overall glow gain — raise for a brighter portrait
   floor: 0.06,        // cells dimmer than this are skipped; lower = more shadow detail
+  saturate: 0.30,     // how much brighter areas lift color; lower = more natural
 };
 
 /* Text sources for each evolution layer. The characters that form
@@ -391,18 +392,19 @@ function render(now){
 
       if(ch === ' '){ continue; }
 
-      let alpha = (0.30 + ink * 0.85) * CONFIG.brightness * asciiAlpha;
-      alpha *= (0.80 + mouseY * 0.5); // mouse Y adds glow
+      // wider tonal range (low floor) so dim areas stay dim — reads natural
+      let alpha = (0.12 + ink * 0.92) * CONFIG.brightness * asciiAlpha;
+      alpha *= (0.85 + mouseY * 0.4); // mouse Y adds a little glow
       alpha = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
 
       let col;
       if(colorMode){
-        // reflect the photo's own color, lifted so lit areas glow
-        const gain = (1.25 + bn * 0.75) * CONFIG.brightness;
+        // keep the photo's real color, gently lifting the brighter areas
+        const gain = (1 + bn * CONFIG.saturate) * CONFIG.brightness;
         col = `rgba(${Math.min(255,R*gain)|0},${Math.min(255,G*gain)|0},${Math.min(255,B*gain)|0},${alpha})`;
       } else {
         // terminal green, brightness follows the image
-        const v = Math.min(255, (55 + ink * 210) * CONFIG.brightness);
+        const v = Math.min(255, (45 + ink * 205) * CONFIG.brightness);
         col = `rgba(${(v*0.45)|0},${v|0},${(v*0.7)|0},${alpha})`;
       }
       ctx.fillStyle = col;
