@@ -6,7 +6,7 @@ desktop.ini
 .vscode/
 .idea/
 
-# Node (only if you add tooling later)
+# Node
 node_modules/
 
 # Local dev-preview config
