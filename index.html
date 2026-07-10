@@ -10,6 +10,7 @@
     --ink:#c9d6ff;
     --dim:#5a6785;
     --accent:#7cf6c8;
+    --gold:#f0b429;   /* the sash / hood gold — used on the GRADUATION caption */
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background:var(--bg);color:var(--ink);font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;}
@@ -309,6 +310,8 @@ function render(now){
   // caption
   capTitle.textContent = layer.title;
   capSub.textContent = layer.sub;
+  // the final "GRADUATION" caption picks up the sash gold
+  capTitle.style.color = (idx === LAYERS.length - 1) ? 'var(--gold)' : '';
 
   // The final layer + click reveal fade toward the real photo
   const photoReveal = Math.max(reveal, Math.max(0, (scrollP - 0.86) / 0.14));
