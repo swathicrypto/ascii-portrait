@@ -58,7 +58,7 @@ Everything worth editing lives at the top of `index.html`:
 
 - **`PHOTOS`** — the three image files
 - **`CONFIG`** — your name, the density ramp, and the tone controls
-  (`gamma`, `brightness`, `saturate`) for how the portrait reads
+  (`gamma`, `saturate`, `cellFill`) for how the portrait reads
 - **`LAYERS`** — the text each layer is drawn from. Paste in snippets of your
   résumé, thesis, or actual code and they'll form the image.
 
