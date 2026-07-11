@@ -100,9 +100,9 @@ const CONFIG = {
   autoContrast: true, // stretch tones apart — essential for dark photos
   gamma: 0.55,        // <1 lifts shadows so dark background detail stays visible
   saturate: 1.35,     // colour saturation (1 = as-shot, >1 = more vivid)
-  floor: 0.03,        // skip only near-black cells
-  cellFill: 0.42,     // faint colour wash behind each character (0 = pure text,
-                      //   higher = brighter / more photo-accurate, less "ASCII")
+  floor: 0.02,        // skip only the truly black cells
+  cellFill: 0.5,      // brightness of each cell's solid colour tile (0 = pure text
+                      //   on black, 1 = full photo). The character draws brighter on top.
 };
 
 /* The three portraits you can toggle between (◇ photo button). Each is shown
@@ -361,8 +361,6 @@ function render(now){
       }
       seq++;
 
-      if(ch === ' '){ continue; }
-
       // ---- Colour: faithful to the photo. Stretch each channel by the same
       // window (keeps the hue), lift shadows so dark background detail shows,
       // then restore saturation. Drawn at full opacity so nothing is muddied.
@@ -382,14 +380,18 @@ function render(now){
         R2 = G2 = B2 = v;
       }
       const px = ox + c*cell, py = oy + r*cell*1.05;
-      // faint colour wash behind the glyph so the image reads bright & accurate
+      // Solid colour tile at a fraction of the cell's true brightness: fills every
+      // cell (no black gaps, even on spaces) and, being opaque, avoids the milky
+      // haze of a semi-transparent wash.
       if(CONFIG.cellFill > 0){
-        ctx.fillStyle = `rgba(${R2},${G2},${B2},${asciiAlpha*CONFIG.cellFill})`;
+        ctx.fillStyle = `rgba(${(R2*CONFIG.cellFill)|0},${(G2*CONFIG.cellFill)|0},${(B2*CONFIG.cellFill)|0},${asciiAlpha})`;
         ctx.fillRect(px, py, cell + 0.6, cell*1.05 + 0.6);
       }
-      // the character itself, at full opacity
-      ctx.fillStyle = `rgba(${R2},${G2},${B2},${asciiAlpha})`;
-      ctx.fillText(ch, px, py);
+      // the character on top at full brightness — pops as crisp text texture
+      if(ch !== ' '){
+        ctx.fillStyle = `rgba(${R2},${G2},${B2},${asciiAlpha})`;
+        ctx.fillText(ch, px, py);
+      }
     }
   }
 
