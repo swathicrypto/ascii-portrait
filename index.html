@@ -98,6 +98,8 @@ const CONFIG = {
   // Character density ramp (classic ASCII), dark -> light
   ramp: "@%#*+=-:. ",
   autoContrast: true, // stretch tones apart — essential for dark photos
+  maxStretch: 1.15,   // cap how far auto-contrast may brighten — stops dark photos
+                      //   (e.g. the wide arena shot) from over-brightening vs. the original
   gamma: 0.55,        // <1 lifts shadows so dark background detail stays visible
   saturate: 1.35,     // colour saturation (1 = as-shot, >1 = more vivid)
   floor: 0.02,        // skip only the truly black cells
@@ -215,7 +217,10 @@ function resample(){
     const loT = N*0.02, hiT = N*0.02; let acc=0, lo=0, hi=255;
     for(let v=0;v<256;v++){ acc+=hist[v]; if(acc>=loT){ lo=v; break; } }
     acc=0; for(let v=255;v>=0;v--){ acc+=hist[v]; if(acc>=hiT){ hi=v; break; } }
-    NORM.lo = lo/255; NORM.hi = Math.max(hi/255, NORM.lo + 0.06);
+    NORM.lo = lo/255;
+    NORM.hi = Math.max(hi/255, NORM.lo + 0.06);
+    // cap the brightening so dark photos (low hi) don't get over-stretched
+    NORM.hi = Math.max(NORM.hi, NORM.lo + 1/CONFIG.maxStretch);
   } else { NORM.lo = 0; NORM.hi = 1; }
 }
 
