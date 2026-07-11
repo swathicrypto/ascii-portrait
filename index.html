@@ -98,11 +98,11 @@ const CONFIG = {
   // Character density ramp (classic ASCII), dark -> light
   ramp: "@%#*+=-:. ",
   autoContrast: true, // stretch tones apart — essential for dark photos
-  gamma: 0.68,        // <1 lifts shadows so the dark side of the face survives
-  vignette: 0,        // 0 = render the whole photo (background included)
-  brightness: 1.16,   // overall glow gain — raise for a brighter portrait
-  floor: 0.06,        // cells dimmer than this are skipped; lower = more shadow detail
-  saturate: 0.48,     // how much brighter areas lift color; lower = more natural
+  gamma: 0.55,        // <1 lifts shadows so dark background detail stays visible
+  saturate: 1.35,     // colour saturation (1 = as-shot, >1 = more vivid)
+  floor: 0.03,        // skip only near-black cells
+  cellFill: 0.42,     // faint colour wash behind each character (0 = pure text,
+                      //   higher = brighter / more photo-accurate, less "ASCII")
 };
 
 /* The three portraits you can toggle between (◇ photo button). Each is shown
@@ -177,7 +177,7 @@ function resize(){
 
 function computeGrid(){
   // Mouse X drives density: left = chunky, right = fine.
-  const minCell = 4, maxCell = 11;
+  const minCell = 3, maxCell = 8;
   cell = Math.round(maxCell - (maxCell - minCell) * mouseX);
   // contain-fit the whole image in the canvas (no cropping, keep orientation)
   if(img){
@@ -338,27 +338,12 @@ function render(now){
     for(let c=0; c<cols; c++){
       const di = (r*cols + c) * 4;
       const R = sampleData[di], G = sampleData[di+1], B = sampleData[di+2];
-      let bn = (0.299*R + 0.587*G + 0.114*B) / 255; // 0 dark .. 1 light
-      // auto-contrast stretch + gamma
-      bn = (bn - NORM.lo) / (NORM.hi - NORM.lo);
-      bn = bn < 0 ? 0 : bn > 1 ? 1 : bn;
-      if(CONFIG.gamma !== 1) bn = Math.pow(bn, CONFIG.gamma);
-      // vignette: darken the frame edges so the busy background recedes
-      if(CONFIG.vignette > 0){
-        // Elliptical vignette: lenient vertically so the cap and shoulders
-        // survive top-to-bottom, but fades the left/right background sides.
-        const ddx = (c/cols - 0.5) * 2;
-        const ddy = (r/rows - 0.5) * 2 * 0.5;
-        const dist = Math.sqrt(ddx*ddx + ddy*ddy);
-        const e = Math.min(1, Math.max(0, (dist - 0.55) / 0.55));
-        bn *= (1 - e * CONFIG.vignette);
-      }
-      // "ink" = how present a cell is: reflects the photo's brightness, so lit
-      // areas glow and shadows fall away.
-      const ink = bn;
 
-      // skip near-empty cells for speed & cleaner look
-      if(ink < CONFIG.floor){ continue; }
+      // contrast-stretched luminance — used only to drop near-black cells
+      const span = (NORM.hi - NORM.lo) || 1;
+      let lum = ((0.299*R + 0.587*G + 0.114*B)/255 - NORM.lo) / span;
+      lum = lum < 0 ? 0 : lum > 1 ? 1 : lum;
+      if(lum < CONFIG.floor){ continue; }
 
       const cellIndex = r*cols + c;
 
@@ -378,23 +363,33 @@ function render(now){
 
       if(ch === ' '){ continue; }
 
-      // wider tonal range (low floor) so dim areas stay dim — reads natural
-      let alpha = (0.12 + ink * 0.92) * CONFIG.brightness * asciiAlpha;
-      alpha *= (0.85 + mouseY * 0.4); // mouse Y adds a little glow
-      alpha = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
+      // ---- Colour: faithful to the photo. Stretch each channel by the same
+      // window (keeps the hue), lift shadows so dark background detail shows,
+      // then restore saturation. Drawn at full opacity so nothing is muddied.
+      let rr = (R/255 - NORM.lo)/span, gg = (G/255 - NORM.lo)/span, bb = (B/255 - NORM.lo)/span;
+      rr = rr<0?0:rr>1?1:rr; gg = gg<0?0:gg>1?1:gg; bb = bb<0?0:bb>1?1:bb;
+      const gl = CONFIG.gamma;
+      rr = Math.pow(rr, gl); gg = Math.pow(gg, gl); bb = Math.pow(bb, gl);
+      const mean = (rr + gg + bb) / 3, s = CONFIG.saturate;
+      rr = mean + (rr-mean)*s; gg = mean + (gg-mean)*s; bb = mean + (bb-mean)*s;
+      rr = rr<0?0:rr>1?1:rr; gg = gg<0?0:gg>1?1:gg; bb = bb<0?0:bb>1?1:bb;
 
-      let col;
+      let R2, G2, B2;
       if(palette === 'color'){
-        // keep the photo's real color, gently lifting the brighter areas
-        const gain = (1 + bn * CONFIG.saturate) * CONFIG.brightness;
-        col = `rgba(${Math.min(255,R*gain)|0},${Math.min(255,G*gain)|0},${Math.min(255,B*gain)|0},${alpha})`;
+        R2 = (rr*255)|0; G2 = (gg*255)|0; B2 = (bb*255)|0;
       } else {
-        // black & white — grayscale, brightness follows the image
-        const v = Math.min(255, (45 + ink * 210) * CONFIG.brightness);
-        col = `rgba(${v|0},${v|0},${v|0},${alpha})`;
+        const v = ((0.299*rr + 0.587*gg + 0.114*bb) * 255) | 0;
+        R2 = G2 = B2 = v;
       }
-      ctx.fillStyle = col;
-      ctx.fillText(ch, ox + c*cell, oy + r*cell*1.05);
+      const px = ox + c*cell, py = oy + r*cell*1.05;
+      // faint colour wash behind the glyph so the image reads bright & accurate
+      if(CONFIG.cellFill > 0){
+        ctx.fillStyle = `rgba(${R2},${G2},${B2},${asciiAlpha*CONFIG.cellFill})`;
+        ctx.fillRect(px, py, cell + 0.6, cell*1.05 + 0.6);
+      }
+      // the character itself, at full opacity
+      ctx.fillStyle = `rgba(${R2},${G2},${B2},${asciiAlpha})`;
+      ctx.fillText(ch, px, py);
     }
   }
 
