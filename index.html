@@ -74,6 +74,7 @@
   <button id="photoBtn">◇ photo 1/3</button>
   <button id="colorBtn">◐ color</button>
   <button id="replayBtn">↻ replay</button>
+  <button id="frameBtn">▣ save frame</button>
 </div>
 
 <div id="track">
@@ -96,9 +97,6 @@ const CONFIG = {
   name: "SWATHI PRAKASH",
   // Character density ramp (classic ASCII), dark -> light
   ramp: "@%#*+=-:. ",
-  // Active crop framing (set from the selected photo below). zoom>1 crops in;
-  // x/y are the crop center (0..1).
-  focus: { zoom: 1.65, x: 0.50, y: 0.44 },
   autoContrast: true, // stretch tones apart — essential for dark photos
   gamma: 0.68,        // <1 lifts shadows so the dark side of the face survives
   vignette: 0,        // 0 = render the whole photo (background included)
@@ -107,13 +105,12 @@ const CONFIG = {
   saturate: 0.48,     // how much brighter areas lift color; lower = more natural
 };
 
-/* The three portraits you can toggle between (◇ photo button). Each has its own
-   crop framing since they're composed differently — swap the files or tune the
-   focus (zoom / x / y) per photo. */
+/* The three portraits you can toggle between (◇ photo button). Each is shown
+   whole — original orientation, no cropping. */
 const PHOTOS = [
-  { src: "portrait1.png", focus: { zoom: 1.65, x: 0.50, y: 0.44 } }, // tight headshot
-  { src: "portrait2.png", focus: { zoom: 2.05, x: 0.50, y: 0.33 } }, // wide arena shot
-  { src: "portrait3.png", focus: { zoom: 1.30, x: 0.44, y: 0.50 } }, // holding the Penn Engineering folder
+  { src: "portrait1.png" },
+  { src: "portrait2.png" },
+  { src: "portrait3.png" },
 ];
 
 /* Text sources for each evolution layer. The characters that form
@@ -151,6 +148,7 @@ let img = null, imgReady = false;
 let W = 0, H = 0;                 // canvas pixel size
 let cols = 100, rows = 60;       // ascii grid
 let cell = 8;                    // pixel size per cell
+let ox = 0, oy = 0, dw = 0, dh = 0; // image display rect (contain-fit, no crop)
 let mouseX = 0.5, mouseY = 0.5;  // normalized mouse
 let scrollP = 0;                 // 0..1 scroll progress
 let palette = 'color';           // 'color' | 'mono' (black & white)
@@ -181,8 +179,14 @@ function computeGrid(){
   // Mouse X drives density: left = chunky, right = fine.
   const minCell = 4, maxCell = 11;
   cell = Math.round(maxCell - (maxCell - minCell) * mouseX);
-  cols = Math.floor(W / cell);
-  rows = Math.floor(H / (cell * 1.05)); // chars are taller than wide
+  // contain-fit the whole image in the canvas (no cropping, keep orientation)
+  if(img){
+    const ia = img.width / img.height, ca = W / H;
+    if(ia > ca){ dw = W; dh = W / ia; } else { dh = H; dw = H * ia; }
+  } else { dw = W; dh = H; }
+  ox = (W - dw) / 2; oy = (H - dh) / 2;
+  cols = Math.max(1, Math.floor(dw / cell));
+  rows = Math.max(1, Math.floor(dh / (cell * 1.05))); // chars are taller than wide
   resample();
 }
 
@@ -190,33 +194,17 @@ function computeGrid(){
 function loadImage(src, fallback){
   const i = new Image();
   i.crossOrigin = "anonymous";
-  i.onload = () => { img = i; imgReady = true; resample(); };
+  i.onload = () => { img = i; imgReady = true; computeGrid(); };
   i.onerror = () => { if(fallback) loadImage(fallback); };
   i.src = src;
-}
-
-// Source rectangle to sample, applying focus zoom/center and cover-fitting the
-// crop box to the target aspect. Used by both the ASCII grid and the photo draw
-// so the two stay aligned.
-function focusRect(aspect){
-  const f = CONFIG.focus;
-  const bw = img.width / f.zoom, bh = img.height / f.zoom; // focus box
-  let sw, sh;
-  if(bw / bh > aspect){ sh = bh; sw = bh * aspect; }
-  else                { sw = bw; sh = bw / aspect; }
-  let sx = img.width  * f.x - sw / 2;
-  let sy = img.height * f.y - sh / 2;
-  sx = Math.max(0, Math.min(img.width  - sw, sx));
-  sy = Math.max(0, Math.min(img.height - sh, sy));
-  return { sx, sy, sw, sh };
 }
 
 function resample(){
   if(!imgReady || cols<1 || rows<1) return;
   sampler.width = cols; sampler.height = rows;
-  const { sx, sy, sw, sh } = focusRect(cols / rows);
   sctx.clearRect(0,0,cols,rows);
-  sctx.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
+  // sample the whole image (no crop) into the grid
+  sctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, cols, rows);
   sampleData = sctx.getImageData(0,0,cols,rows).data;
 
   // Auto-contrast: find the 2nd/98th luminance percentiles and stretch to them.
@@ -314,11 +302,10 @@ function render(now){
 
   ctx.clearRect(0,0,W,H);
 
-  // Draw real photo underneath, fading in
+  // Draw real photo underneath, fading in (whole image, original orientation)
   if(photoReveal > 0.001){
     ctx.globalAlpha = photoReveal;
-    const cr = focusRect(W / H); // same framing as the ASCII, so they align
-    ctx.drawImage(img, cr.sx, cr.sy, cr.sw, cr.sh, 0, 0, W, H);
+    ctx.drawImage(img, ox, oy, dw, dh);
     ctx.globalAlpha = 1;
   }
 
@@ -407,7 +394,7 @@ function render(now){
         col = `rgba(${v|0},${v|0},${v|0},${alpha})`;
       }
       ctx.fillStyle = col;
-      ctx.fillText(ch, c*cell, r*cell*1.05);
+      ctx.fillText(ch, ox + c*cell, oy + r*cell*1.05);
     }
   }
 
@@ -456,7 +443,6 @@ document.getElementById('replayBtn').addEventListener('click', ()=>{
 // ---------- Photo switcher ----------
 function setPhoto(i){
   photoIndex = (i + PHOTOS.length) % PHOTOS.length;
-  CONFIG.focus = PHOTOS[photoIndex].focus;
   imgReady = false;
   loadImage(PHOTOS[photoIndex].src, makePlaceholder());
   phase = 'typing'; phaseStart = performance.now(); reveal = 0; revealTarget = 0;
@@ -464,6 +450,23 @@ function setPhoto(i){
   if(btn) btn.textContent = `◇ photo ${photoIndex + 1}/${PHOTOS.length}`;
 }
 document.getElementById('photoBtn').addEventListener('click', ()=> setPhoto(photoIndex + 1));
+
+// snapshot the current view (just the image area, on a dark background)
+document.getElementById('frameBtn').addEventListener('click', ()=>{
+  try{
+    const scale = canvas.width / W; // device pixel ratio
+    const sw = Math.max(1, Math.round(dw * scale));
+    const sh = Math.max(1, Math.round(dh * scale));
+    const tmp = document.createElement('canvas');
+    tmp.width = sw; tmp.height = sh;
+    const t = tmp.getContext('2d');
+    t.fillStyle = '#05060a'; t.fillRect(0, 0, sw, sh);
+    t.drawImage(canvas, Math.round(ox*scale), Math.round(oy*scale), sw, sh, 0, 0, sw, sh);
+    const a = document.createElement('a');
+    a.download = `ascii-${PHOTOS[photoIndex].src.replace(/\.\w+$/, '')}.png`;
+    a.href = tmp.toDataURL('image/png'); a.click();
+  }catch(e){ alert('Could not export frame.'); }
+});
 
 // ---------- Boot ----------
 resize();

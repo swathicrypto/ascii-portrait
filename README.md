@@ -33,6 +33,7 @@ As you scroll, the same portrait is redrawn from a different alphabet:
 - **Photo** : toggle between the three graduation portraits
 - **Color** : switch between full color and black & white
 - **Replay** : restart the typing intro
+- **Save frame** : snapshot the current view as a PNG
 
 ## Run it locally
 
@@ -48,21 +49,18 @@ python -m http.server 8000
 ## The photos
 
 Three portraits live in the repo as **`portrait1.png`**, **`portrait2.png`**,
-and **`portrait3.png`** — the **◇ photo** button toggles between them. Swap in
-your own by replacing those files (each gets its own crop in `PHOTOS`).
+and **`portrait3.png`** — the **◇ photo** button toggles between them, each shown
+whole in its original orientation. Swap in your own by replacing those files.
 
 ## Make it yours
 
 Everything worth editing lives at the top of `index.html`:
 
-- **`PHOTOS`** — the three image files and each one's `focus` (zoom / crop center)
+- **`PHOTOS`** — the three image files
 - **`CONFIG`** — your name, the density ramp, and the tone controls
   (`gamma`, `brightness`, `saturate`) for how the portrait reads
 - **`LAYERS`** — the text each layer is drawn from. Paste in snippets of your
   résumé, thesis, or actual code and they'll form the image.
-
-> **Framing tip:** if a face sits off-center or too far away, nudge that photo's
-> `focus` — raise `zoom` to crop in tighter, shift `x` / `y` (0–1) to re-center.
 
 ## Tech
 
