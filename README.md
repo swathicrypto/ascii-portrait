@@ -33,7 +33,6 @@ As you scroll, the same portrait is redrawn from a different alphabet:
 - **Photo** : toggle between the three graduation portraits
 - **Color** : switch between full color and black & white
 - **Replay** : restart the typing intro
-- **Save frame** : snapshot the current view as a PNG
 
 ## The photos
 

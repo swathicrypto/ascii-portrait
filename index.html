@@ -74,7 +74,6 @@
   <button id="photoBtn">◇ photo 1/3</button>
   <button id="colorBtn">◐ color</button>
   <button id="replayBtn">↻ replay</button>
-  <button id="frameBtn">▣ save frame</button>
 </div>
 
 <div id="track">
@@ -452,23 +451,6 @@ function setPhoto(i){
   if(btn) btn.textContent = `◇ photo ${photoIndex + 1}/${PHOTOS.length}`;
 }
 document.getElementById('photoBtn').addEventListener('click', ()=> setPhoto(photoIndex + 1));
-
-// snapshot the current view (just the image area, on a dark background)
-document.getElementById('frameBtn').addEventListener('click', ()=>{
-  try{
-    const scale = canvas.width / W; // device pixel ratio
-    const sw = Math.max(1, Math.round(dw * scale));
-    const sh = Math.max(1, Math.round(dh * scale));
-    const tmp = document.createElement('canvas');
-    tmp.width = sw; tmp.height = sh;
-    const t = tmp.getContext('2d');
-    t.fillStyle = '#05060a'; t.fillRect(0, 0, sw, sh);
-    t.drawImage(canvas, Math.round(ox*scale), Math.round(oy*scale), sw, sh, 0, 0, sw, sh);
-    const a = document.createElement('a');
-    a.download = `ascii-${PHOTOS[photoIndex].src.replace(/\.\w+$/, '')}.png`;
-    a.href = tmp.toDataURL('image/png'); a.click();
-  }catch(e){ alert('Could not export frame.'); }
-});
 
 // ---------- Boot ----------
 resize();
